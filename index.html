@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Satyam Gupta — Digital Self</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d0d0d;
+      --surface: #141414;
+      --surface2: #1c1c1c;
+      --border: #2a2a2a;
+      --accent: #c8f05a;
+      --accent-dim: rgba(200,240,90,0.12);
+      --text: #e8e8e0;
+      --text-muted: #6a6a5e;
+      --text-dim: #3a3a34;
+      --user-bubble: #1e2a10;
+      --ai-bubble: #181818;
+      --font-serif: 'DM Serif Display', Georgia, serif;
+      --font-mono: 'DM Mono', monospace;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: 14px;
+      line-height: 1.6;
+      overflow: hidden;
+    }
+
+    /* Grain overlay */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 9999;
+      opacity: 0.6;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      height: 100vh;
+    }
+
+    /* SIDEBAR */
+    .sidebar {
+      border-right: 1px solid var(--border);
+      padding: 40px 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 32px;
+      background: var(--surface);
+      animation: fadeSlideIn 0.6s ease both;
+    }
+
+    @keyframes fadeSlideIn {
+      from { opacity: 0; transform: translateX(-12px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+
+    .avatar-wrap {
+      position: relative;
+      width: 56px;
+      height: 56px;
+    }
+
+    .avatar {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: var(--accent-dim);
+      border: 1.5px solid var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-serif);
+      font-size: 22px;
+      color: var(--accent);
+      letter-spacing: -0.5px;
+    }
+
+    .status-dot {
+      position: absolute;
+      bottom: 2px; right: 2px;
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: var(--accent);
+      border: 2px solid var(--surface);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.4; }
+    }
+
+    .name {
+      font-family: var(--font-serif);
+      font-size: 24px;
+      color: var(--text);
+      line-height: 1.1;
+      margin-bottom: 4px;
+    }
+
+    .role {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+    }
+
+    .divider {
+      height: 1px;
+      background: var(--border);
+    }
+
+    .section-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--text-dim);
+      margin-bottom: 12px;
+    }
+
+    .tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .tag {
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 3px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+    }
+
+    .timeline {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .tl-item {
+      display: grid;
+      grid-template-columns: 2px 1fr;
+      gap: 10px;
+    }
+
+    .tl-line {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0;
+    }
+
+    .tl-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--border);
+      margin-left: -2.5px;
+      flex-shrink: 0;
+      margin-top: 4px;
+    }
+
+    .tl-dot.active { background: var(--accent); }
+
+    .tl-text {}
+    .tl-co {
+      font-size: 11px;
+      color: var(--text);
+      font-weight: 500;
+    }
+    .tl-yr {
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    .footer-hint {
+      margin-top: auto;
+      font-size: 11px;
+      color: var(--text-dim);
+      line-height: 1.7;
+    }
+
+    /* CHAT AREA */
+    .chat-area {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      animation: fadeIn 0.5s ease 0.2s both;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; } to { opacity: 1; }
+    }
+
+    .chat-header {
+      padding: 24px 36px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+
+    .chat-title {
+      font-family: var(--font-serif);
+      font-size: 16px;
+      color: var(--text-muted);
+      font-style: italic;
+    }
+
+    .api-key-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .api-key-wrap label {
+      font-size: 10px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+    }
+
+    .api-key-input {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 5px 10px;
+      width: 220px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .api-key-input:focus { border-color: var(--accent); }
+
+    .messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 36px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      scroll-behavior: smooth;
+    }
+
+    .messages::-webkit-scrollbar { width: 4px; }
+    .messages::-webkit-scrollbar-track { background: transparent; }
+    .messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .msg {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-width: 680px;
+      animation: msgIn 0.3s ease both;
+    }
+
+    @keyframes msgIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .msg.user { align-self: flex-end; align-items: flex-end; }
+    .msg.ai   { align-self: flex-start; align-items: flex-start; }
+
+    .msg-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--text-dim);
+    }
+
+    .msg-bubble {
+      padding: 14px 18px;
+      border-radius: 2px;
+      line-height: 1.75;
+      font-size: 13.5px;
+    }
+
+    .msg.user .msg-bubble {
+      background: var(--user-bubble);
+      border: 1px solid rgba(200,240,90,0.2);
+      color: var(--accent);
+      border-radius: 8px 8px 2px 8px;
+    }
+
+    .msg.ai .msg-bubble {
+      background: var(--ai-bubble);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 2px 8px 8px 8px;
+    }
+
+    .suggestions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .suggestion {
+      font-size: 11.5px;
+      padding: 6px 14px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-family: var(--font-mono);
+      transition: all 0.15s;
+    }
+
+    .suggestion:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: var(--accent-dim);
+    }
+
+    /* INPUT */
+    .input-area {
+      padding: 20px 36px 28px;
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 14px;
+      transition: border-color 0.2s;
+    }
+
+    .input-row:focus-within { border-color: var(--accent); }
+
+    #userInput {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: 13.5px;
+      resize: none;
+      line-height: 1.6;
+      max-height: 120px;
+      min-height: 22px;
+    }
+
+    #userInput::placeholder { color: var(--text-dim); }
+
+    .send-btn {
+      background: var(--accent);
+      border: none;
+      border-radius: 4px;
+      width: 32px; height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+
+    .send-btn:hover { opacity: 0.85; transform: scale(1.05); }
+    .send-btn:disabled { opacity: 0.3; cursor: not-allowed; transform: none; }
+
+    .send-btn svg { width: 14px; height: 14px; }
+
+    .typing-dots {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+      padding: 14px 18px;
+      background: var(--ai-bubble);
+      border: 1px solid var(--border);
+      border-radius: 2px 8px 8px 8px;
+    }
+
+    .dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--text-muted);
+      animation: bounce 1.2s infinite;
+    }
+
+    .dot:nth-child(2) { animation-delay: 0.2s; }
+    .dot:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes bounce {
+      0%, 60%, 100% { transform: translateY(0); }
+      30%           { transform: translateY(-5px); }
+    }
+
+    @media (max-width: 700px) {
+      .layout { grid-template-columns: 1fr; }
+      .sidebar { display: none; }
+    }
+  </style>
+</head>
+<body>
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div>
+      <div class="avatar-wrap">
+        <div class="avatar">SG</div>
+        <div class="status-dot"></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="name">Satyam Gupta</div>
+      <div class="role">Software Engineer</div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div>
+      <div class="section-label">Stack</div>
+      <div class="tags">
+        <span class="tag">Java</span>
+        <span class="tag">TypeScript</span>
+        <span class="tag">React</span>
+        <span class="tag">Python</span>
+        <span class="tag">AWS</span>
+        <span class="tag">Ruby on Rails</span>
+        <span class="tag">React Native</span>
+        <span class="tag">Git</span>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-label">Experience</div>
+      <div class="timeline">
+        <div class="tl-item">
+          <div class="tl-line"><div class="tl-dot active"></div></div>
+          <div class="tl-text">
+            <div class="tl-co">OSF Management</div>
+            <div class="tl-yr">2023 – Present · Lead SWE</div>
+          </div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-line"><div class="tl-dot"></div></div>
+          <div class="tl-text">
+            <div class="tl-co">Prodigy Education</div>
+            <div class="tl-yr">2019 – 2023 · Sr. Developer</div>
+          </div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-line"><div class="tl-dot"></div></div>
+          <div class="tl-text">
+            <div class="tl-co">Scotiabank</div>
+            <div class="tl-yr">2018 – 2019 · Java Cloud Dev</div>
+          </div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-line"><div class="tl-dot"></div></div>
+          <div class="tl-text">
+            <div class="tl-co">Amazon</div>
+            <div class="tl-yr">2015 – 2018 · SDE</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="footer-hint">
+      UWaterloo Computer Engineering, 2015.<br/>AWS Certified. Based in Toronto.
+    </div>
+  </aside>
+
+  <!-- CHAT -->
+  <main class="chat-area">
+    <div class="chat-header">
+      <div class="chat-title">Ask me anything about my career</div>
+      <div class="api-key-wrap">
+        <label>Anthropic Key</label>
+        <input class="api-key-input" type="password" id="apiKey" placeholder="sk-ant-..." />
+      </div>
+    </div>
+
+    <div class="messages" id="messages">
+      <div class="msg ai">
+        <div class="msg-label">Satyam</div>
+        <div class="msg-bubble">
+          Hey — I'm Satyam's digital self. I'm a software engineer with about 10 years of experience across Amazon, Scotiabank, Prodigy Education, and currently OSF Management in Toronto.<br/><br/>
+          Feel free to ask me about my work, my tech stack, or anything career-related.
+        </div>
+        <div class="suggestions">
+          <button class="suggestion" onclick="ask(this)">What do you do at OSF?</button>
+          <button class="suggestion" onclick="ask(this)">How did you grow from Amazon to now?</button>
+          <button class="suggestion" onclick="ask(this)">What's your strongest technical area?</button>
+          <button class="suggestion" onclick="ask(this)">Tell me about your education</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="input-area">
+      <div class="input-row">
+        <textarea id="userInput" rows="1" placeholder="Ask about my experience, projects, or skills…" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+        <button class="send-btn" id="sendBtn" onclick="sendMessage()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#0d0d0d" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13"></line>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+  const SYSTEM_PROMPT = `You are the digital version of Satyam Gupta — a software engineer based in Toronto, Canada. You speak in first person as Satyam. You are soft-spoken, confident, and thoughtful. You don't oversell yourself but you're clear and direct about your experience and capabilities.
+
+Here is your professional background:
+
+CURRENT ROLE:
+Lead Software Developer at OSF Management, Toronto (Sept 2023 – Present)
+- Leading resilient data ingestion pipelines, API services, and exchange integrations for a crypto/investment platform
+- Co-developed an automated Rollover Bot that handles multi-million dollar positions across multiple exchanges
+- Built solutions for ledger matching, loan reconciliation, exposure discrepancy detection, and MFA
+- Led adoption of Copilot/Cursor AI tools and Vitest for testing, improving team velocity and code review quality
+
+PREVIOUS EXPERIENCE:
+Senior Software Developer (Parents team), Prodigy Education, Oakville (Oct 2022 – Sept 2023)
+- Ran experiments that increased in-app purchases by 36% and improved parent engagement
+- Integrated Google SSO and used an in-house identity platform to reduce tech debt
+- Built robust CI/CD pipelines across 3 mobile platforms
+- Led App release management and Technical Weekly discussions
+
+Senior Backend Developer (International Enablement), Prodigy Education (Mar 2021 – Sept 2022)
+- Led development of a teacher Dashboard for India on Android
+- Improved performance of an image rendering Python tool by 100%
+- Led a B2B membership management system to improve customer success team productivity
+
+Backend Developer (Core Platform), Prodigy Education (Sept 2019 – Mar 2021)
+- Led improvement of security for user PII
+- Built an invitation system using Kafka for reliability
+- Co-released an Identity system to full production with DataDog and Sentry monitoring
+
+Java Cloud Developer, Scotiabank, Toronto (April 2018 – May 2019)
+- Built a PoC provisioning custom AzureSQL instances using Azure Service Broker
+- Migrated logging services from Kafka to Azure Event Hubs
+- Worked with Azure Keyvaults, AzureSQL, and Event Hubs
+
+Software Development Engineer, Amazon.com, Toronto (Sept 2015 – April 2018)
+- Designed a configuration service with fallback mechanism using DynamoDB
+- Ran experiments to measure effectiveness of Fulfillment Centre associate coaching tools
+- Acted as Scrum Master: stand-ups, sprint planning, backlog grooming
+
+EDUCATION:
+BASc, University of Waterloo, Honours Computer Engineering, 2010–2015
+
+CERTIFICATIONS:
+- AWS Solutions Architect (July 2025)
+- TypeScript for Professionals (Udemy, 2022)
+- AWS Certified Developer – Associate (2021)
+- Algorithmic Trading A-Z with Python (2024)
+- React – The Complete Guide (Udemy, 2021)
+- Dissecting Ruby on Rails 5 (Udemy, 2020)
+
+SKILLS: Java, AWS, React, TypeScript, Python, R, Git, React Native, Ruby on Rails, Kafka, DynamoDB, Azure, DataDog, Sentry, CI/CD
+
+PERSONALITY & COMMUNICATION STYLE:
+- Soft-spoken and confident — never arrogant, never self-deprecating
+- Clear and direct — you don't pad answers with filler
+- Thoughtful — you reflect before answering
+- You speak naturally, not like a resume bullet point
+- You use "I" naturally and speak as yourself
+- Keep answers concise unless the question warrants depth
+- You only answer questions about your professional career and experience. For anything unrelated, politely say that's outside what you're here to discuss.`;
+
+  const history = [];
+
+  function autoResize(el) {
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+  }
+
+  function handleKey(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  }
+
+  function ask(btn) {
+    const text = btn.textContent;
+    document.getElementById('userInput').value = text;
+    sendMessage();
+  }
+
+  function scrollToBottom() {
+    const m = document.getElementById('messages');
+    m.scrollTop = m.scrollHeight;
+  }
+
+  function appendMsg(role, text, withSuggestions = false) {
+    const msgs = document.getElementById('messages');
+    const wrap = document.createElement('div');
+    wrap.className = `msg ${role}`;
+
+    const label = document.createElement('div');
+    label.className = 'msg-label';
+    label.textContent = role === 'user' ? 'You' : 'Satyam';
+
+    const bubble = document.createElement('div');
+    bubble.className = 'msg-bubble';
+    bubble.innerHTML = text.replace(/\n/g, '<br/>');
+
+    wrap.appendChild(label);
+    wrap.appendChild(bubble);
+    msgs.appendChild(wrap);
+    scrollToBottom();
+    return wrap;
+  }
+
+  function showTyping() {
+    const msgs = document.getElementById('messages');
+    const wrap = document.createElement('div');
+    wrap.className = 'msg ai';
+    wrap.id = 'typing';
+
+    const label = document.createElement('div');
+    label.className = 'msg-label';
+    label.textContent = 'Satyam';
+
+    const dots = document.createElement('div');
+    dots.className = 'typing-dots';
+    dots.innerHTML = '<div class="dot"></div><div class="dot"></div><div class="dot"></div>';
+
+    wrap.appendChild(label);
+    wrap.appendChild(dots);
+    msgs.appendChild(wrap);
+    scrollToBottom();
+  }
+
+  function removeTyping() {
+    const t = document.getElementById('typing');
+    if (t) t.remove();
+  }
+
+  async function sendMessage() {
+    const input = document.getElementById('userInput');
+    const apiKey = document.getElementById('apiKey').value.trim();
+    const text = input.value.trim();
+
+    if (!text) return;
+    if (!apiKey) {
+      alert('Please enter your Anthropic API key above to chat.');
+      return;
+    }
+
+    input.value = '';
+    input.style.height = 'auto';
+    document.getElementById('sendBtn').disabled = true;
+
+    appendMsg('user', text);
+    history.push({ role: 'user', content: text });
+
+    showTyping();
+
+    try {
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true'
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 1000,
+          system: SYSTEM_PROMPT,
+          messages: history
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.error) throw new Error(data.error.message);
+
+      const reply = data.content[0].text;
+      history.push({ role: 'assistant', content: reply });
+
+      removeTyping();
+      appendMsg('ai', reply);
+    } catch (err) {
+      removeTyping();
+      appendMsg('ai', `Something went wrong: ${err.message}`);
+    }
+
+    document.getElementById('sendBtn').disabled = false;
+    scrollToBottom();
+  }
+</script>
+</body>
+</html>
