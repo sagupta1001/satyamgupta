@@ -1,2 +1,2 @@
 # satyamgupta
-Digital Sef
+Digital Self
