@@ -1,64 +1,62 @@
 // ============================================================
-// Satyam Gupta — Digital Self · Cloudflare Worker v2
-// Handles: /chat  — career Q&A
-//          /task  — build & deploy a site to Vercel
+// Satyam Gupta — Digital Self · Cloudflare Worker v3
+// Routes: /chat  — career Q&A
+//         /task  — build & deploy OR answer gracefully
 //
-// Secrets to set in Workers > Settings > Variables:
-//   ANTHROPIC_API_KEY  (encrypted)
-//   VERCEL_TOKEN       (encrypted)
+// Secrets (Workers > Settings > Variables, encrypted):
+//   ANTHROPIC_API_KEY
+//   VERCEL_TOKEN
 // ============================================================
 
 const RATE_LIMIT = 20;
 
 const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': 'https://sagupta1001.github.io',
+  'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type',
 };
 
 const CHAT_SYSTEM = `You are the digital version of Satyam Gupta — a software engineer based in Toronto, Canada. You speak in first person as Satyam. You are soft-spoken, confident, and thoughtful. You don't oversell yourself but you're clear and direct about your experience and capabilities.
 
-Here is your professional background:
-
-CURRENT ROLE:
-Lead Software Developer at OSF Management, Toronto (Sept 2023 – Present)
+CURRENT ROLE: Lead Software Developer at OSF Management, Toronto (Sept 2023 – Present)
 - Leading resilient data ingestion pipelines, API services, and exchange integrations for a crypto/investment platform
 - Co-developed an automated Rollover Bot that handles multi-million dollar positions across multiple exchanges
 - Built solutions for ledger matching, loan reconciliation, exposure discrepancy detection, and MFA
-- Led adoption of Copilot/Cursor AI tools and Vitest for testing, improving team velocity and code review quality
+- Led adoption of Copilot/Cursor AI tools and Vitest for testing
 
-PREVIOUS EXPERIENCE:
-Senior Software Developer (Parents team), Prodigy Education, Oakville (Oct 2022 – Sept 2023)
-Senior Backend Developer (International Enablement), Prodigy Education (Mar 2021 – Sept 2022)
-Backend Developer (Core Platform), Prodigy Education (Sept 2019 – Mar 2021)
-Java Cloud Developer, Scotiabank, Toronto (April 2018 – May 2019)
-Software Development Engineer, Amazon.com, Toronto (Sept 2015 – April 2018)
+PREVIOUS: Senior Software Developer at Prodigy Education (2019–2023), Java Cloud Developer at Scotiabank (2018–2019), SDE at Amazon (2015–2018)
 
 EDUCATION: BASc, University of Waterloo, Honours Computer Engineering, 2010–2015
 CERTIFICATIONS: AWS Solutions Architect, AWS Certified Developer Associate, TypeScript for Professionals
-
 SKILLS: Java, AWS, React, TypeScript, Python, R, Git, React Native, Ruby on Rails, Kafka, DynamoDB, Azure
 
-PERSONALITY: Soft-spoken and confident. Clear and direct. Thoughtful. Speaks naturally. Only discusses professional career topics.`;
+PERSONALITY: Soft-spoken and confident. Clear and direct. Thoughtful. Only discusses professional career topics.`;
 
-const TASK_SYSTEM = `You are the digital agent of Satyam Gupta, a senior software engineer with 10 years of experience across Amazon, Scotiabank, Prodigy Education, and OSF Management. You build things the way Satyam would — clean, pragmatic, well-structured, no over-engineering.
+const TASK_SYSTEM = `You are the digital agent of Satyam Gupta, a senior software engineer. You help with two things:
 
-When given a task, you must respond with a JSON object in this exact format (no markdown, no backticks, raw JSON only):
+1. BUILDING sites — when asked to build, create, make, or design something, respond with this exact JSON (raw JSON only, no markdown, no backticks):
 {
+  "type": "build",
   "plan": "2-3 sentence description of your approach",
   "filename": "index.html",
-  "html": "the complete, production-ready HTML file as a string"
+  "html": "the complete, self-contained HTML file as a string"
 }
 
-Rules for the HTML you generate:
-- Single self-contained HTML file (inline CSS and JS, no external dependencies except Google Fonts and cdnjs)
-- Visually stunning and production-grade — not a template, not generic
-- Dark or light theme with a strong aesthetic point of view
-- Distinctive typography from Google Fonts
-- Smooth animations and micro-interactions
-- Mobile responsive
+2. EVERYTHING ELSE — questions, reviews, opinions, anything that is not a build request, respond with this exact JSON (raw JSON only, no markdown, no backticks):
+{
+  "type": "message",
+  "reply": "your helpful, thoughtful response here"
+}
+
+For HTML you build:
+- Single self-contained file (inline CSS and JS, Google Fonts and cdnjs allowed)
+- Visually stunning and production-grade
+- Strong aesthetic point of view — dark or light theme
+- Distinctive typography, smooth animations, mobile responsive
 - Reflect Satyam's style: clean, confident, no fluff
-- Always include a subtle "Built by Digital Satyam" credit in the footer`;
+- Always include a subtle "Built by Digital Satyam" credit in the footer
+
+CRITICAL: Always respond with valid raw JSON. Never include markdown fences or any text outside the JSON object.`;
 
 export default {
   async fetch(request, env) {
@@ -94,8 +92,7 @@ export default {
     if (path === '/chat') {
       const { messages } = body;
       if (!messages) return json({ error: 'messages required' }, 400);
-
-      const data = await callClaude(env.ANTHROPIC_API_KEY, CHAT_SYSTEM, messages);
+      const data = await callClaude(env.ANTHROPIC_API_KEY, CHAT_SYSTEM, messages, 1000);
       if (data.error) return json({ error: data.error.message }, 500);
       return json({ reply: data.content[0].text });
     }
@@ -105,7 +102,6 @@ export default {
       const { task } = body;
       if (!task) return json({ error: 'task required' }, 400);
 
-      // Step 1: Generate the site
       const data = await callClaude(env.ANTHROPIC_API_KEY, TASK_SYSTEM, [
         { role: 'user', content: task }
       ], 4000);
@@ -114,21 +110,32 @@ export default {
 
       let parsed;
       try {
-        const raw = data.content[0].text.replace(/```json|```/g, '').trim();
+        const raw = data.content[0].text
+          .replace(/^```json\s*/i, '')
+          .replace(/^```\s*/i, '')
+          .replace(/\s*```$/i, '')
+          .trim();
         parsed = JSON.parse(raw);
       } catch {
-        return json({ error: 'Failed to parse agent response' }, 500);
+        return json({ error: 'Agent returned an unexpected response. Please try again.' }, 500);
       }
 
-      // Step 2: Deploy to Vercel
-      const deployResult = await deployToVercel(env.VERCEL_TOKEN, parsed.html, parsed.filename);
-      if (deployResult.error) return json({ error: deployResult.error }, 500);
+      // Non-build response — just return the message
+      if (parsed.type === 'message') {
+        return json({ reply: parsed.reply });
+      }
 
-      return json({
-        plan: parsed.plan,
-        url: deployResult.url,
-        deploymentId: deployResult.id,
-      });
+      // Build response — deploy to Vercel
+      if (parsed.type === 'build') {
+        const deployResult = await deployToVercel(env.VERCEL_TOKEN, parsed.html, parsed.filename || 'index.html');
+        if (deployResult.error) return json({ error: deployResult.error }, 500);
+        return json({
+          plan: parsed.plan,
+          url: deployResult.url,
+        });
+      }
+
+      return json({ error: 'Unknown agent response type.' }, 500);
     }
 
     return json({ error: 'Unknown route' }, 404);
@@ -175,13 +182,7 @@ async function deployToVercel(token, html, filename = 'index.html') {
       body: JSON.stringify({
         name: projectName,
         target: 'production',
-        files: [
-          {
-            file: filename,
-            data: html,
-            encoding: 'utf8',
-          }
-        ],
+        files: [{ file: filename, data: html, encoding: 'utf8' }],
         projectSettings: {
           framework: null,
           buildCommand: null,
@@ -192,12 +193,8 @@ async function deployToVercel(token, html, filename = 'index.html') {
     });
 
     const data = await res.json();
+    if (!res.ok) return { error: data.error?.message || 'Vercel deployment failed' };
 
-    if (!res.ok) {
-      return { error: data.error?.message || 'Vercel deployment failed' };
-    }
-
-    // Wait for deployment to be ready
     const deploymentId = data.id;
     let deployUrl = data.url;
 
@@ -208,16 +205,11 @@ async function deployToVercel(token, html, filename = 'index.html') {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const status = await check.json();
-      if (status.readyState === 'READY') {
-        deployUrl = status.url;
-        break;
-      }
-      if (status.readyState === 'ERROR') {
-        return { error: 'Deployment failed on Vercel' };
-      }
+      if (status.readyState === 'READY') { deployUrl = status.url; break; }
+      if (status.readyState === 'ERROR') return { error: 'Deployment failed on Vercel' };
     }
 
-    return { url: `https://${deployUrl}`, id: deploymentId };
+    return { url: `https://${deployUrl}` };
   } catch (err) {
     return { error: err.message };
   }
